@@ -1,0 +1,434 @@
+#!/bin/bash
+
+# Signal & Noise Framework CLI
+# Conversation-driven context and decision tracking
+
+set -e
+
+VERSION="0.1.0"
+SIGNAL_DIR=".signal"
+TEMPLATE_DIR="$(dirname "$0")/../templates"
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+# Helper functions
+info() {
+  echo -e "${BLUE}ℹ${NC} $1"
+}
+
+success() {
+  echo -e "${GREEN}✓${NC} $1"
+}
+
+warn() {
+  echo -e "${YELLOW}⚠${NC} $1"
+}
+
+error() {
+  echo -e "${RED}✗${NC} $1"
+  exit 1
+}
+
+# Check if we're in a signal-enabled project
+check_signal_dir() {
+  if [ ! -d "$SIGNAL_DIR" ]; then
+    error "Not in a signal-enabled project. Run 'signal init' first."
+  fi
+}
+
+# Initialize a new signal project
+cmd_init() {
+  if [ -d "$SIGNAL_DIR" ]; then
+    warn "Signal already initialized in this project"
+    exit 0
+  fi
+
+  info "Initializing Signal & Noise Framework..."
+  
+  # Create directory structure
+  mkdir -p "$SIGNAL_DIR"/{conversations,paths,patterns}
+  
+  # Create index
+  cat > "$SIGNAL_DIR/index.md" << 'EOF'
+# Signal & Noise - Project Index
+
+**Project**: [Your Project Name]  
+**Initialized**: $(date +%Y-%m-%d)  
+**Mode**: minimum
+
+---
+
+## Quick Navigation
+
+- [All Conversations](conversations/)
+- [Active Paths](paths/active.md)
+- [Deferred Paths](paths/deferred.md)
+- [Patterns](patterns/)
+
+---
+
+## Recent Activity
+
+No conversations captured yet. Run `signal capture` after your next chat session.
+
+---
+
+## Project Context
+
+**What is this project?**
+[Brief description]
+
+**Current Phase**:
+[Planning / Development / Testing / Production]
+
+**Key Goals**:
+1. Goal 1
+2. Goal 2
+3. Goal 3
+
+---
+
+## Statistics
+
+- **Conversations**: 0
+- **Paths Revealed**: 0
+- **Paths Taken**: 0
+- **Paths Deferred**: 0
+- **Patterns Identified**: 0
+
+---
+
+*Use `signal help` for available commands*
+EOF
+
+  # Create path tracking files
+  cat > "$SIGNAL_DIR/paths/active.md" << 'EOF'
+# Active Paths
+
+Paths currently being pursued.
+
+---
+
+*No active paths yet*
+EOF
+
+  cat > "$SIGNAL_DIR/paths/deferred.md" << 'EOF'
+# Deferred Paths
+
+Paths waiting for the right time, information, or resources.
+
+---
+
+## Deferred - Need Info
+
+*None yet*
+
+## Deferred - No Time
+
+*None yet*
+
+## Deferred - Blocked
+
+*None yet*
+EOF
+
+  # Create .gitignore option
+  read -p "Add .signal/ to .gitignore? (y/n): " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "" >> .gitignore
+    echo "# Signal & Noise Framework" >> .gitignore
+    echo ".signal/" >> .gitignore
+    success "Added .signal/ to .gitignore"
+  fi
+
+  success "Signal initialized! Run 'signal help' to get started."
+}
+
+# Capture a conversation
+cmd_capture() {
+  check_signal_dir
+  
+  local description="${1:-New conversation}"
+  local date=$(date +%Y-%m-%d)
+  local time=$(date +%H:%M)
+  local slug=$(echo "$description" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd '[:alnum:]-')
+  local filename="$SIGNAL_DIR/conversations/${date}-${slug}.md"
+  
+  if [ -f "$filename" ]; then
+    warn "Conversation file already exists: $filename"
+    read -p "Open for editing? (y/n): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      ${EDITOR:-nano} "$filename"
+    fi
+    exit 0
+  fi
+  
+  info "Creating conversation node: $description"
+  
+  # Copy template and fill in basics
+  cat > "$filename" << EOF
+# Conversation: $description
+
+**Date**: $date  
+**Time**: $time  
+**Participant**: [Your Name]  
+**AI Assistant**: [GitHub Copilot / ChatGPT / etc.]  
+**Project**: $(basename $(pwd))  
+**Status**: active
+
+---
+
+## Context
+
+**What were you working on?**
+- [Current task or feature]
+
+**Why this conversation?**
+- [What triggered the discussion]
+
+---
+
+## Summary
+
+**Key Points Discussed:**
+1. 
+2. 
+3. 
+
+**Key Insights:**
+- 
+- 
+
+---
+
+## Paths Revealed
+
+### Path 1: [Name]
+- **Description**: 
+- **Status**: \`taken\`
+- **Pros**: 
+  - 
+- **Cons**:
+  - 
+- **Effort**: Medium
+- **Risk**: Low
+
+---
+
+## Decision Made
+
+**Chosen Path**: [Path Name]
+
+**Reasoning**:
+- 
+- 
+
+**Next Actions**:
+- [ ] 
+- [ ] 
+
+---
+
+## Deferred Paths
+
+*None*
+
+---
+
+## Links & References
+
+**Related Conversations**:
+- 
+
+**Files Modified**:
+- 
+
+---
+
+## Tags
+
+\`#\` \`#\` \`#\`
+
+---
+
+*Template Version: 1.0*
+EOF
+
+  success "Created: $filename"
+  info "Opening in editor..."
+  ${EDITOR:-nano} "$filename"
+}
+
+# Show status
+cmd_status() {
+  check_signal_dir
+  
+  echo -e "${BLUE}=== Signal Status ===${NC}\n"
+  
+  echo "Project: $(basename $(pwd))"
+  echo ""
+  
+  # Count conversations
+  local conv_count=$(find "$SIGNAL_DIR/conversations" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+  echo "Conversations: $conv_count"
+  
+  # Show recent
+  if [ "$conv_count" -gt 0 ]; then
+    echo ""
+    echo "Recent conversations:"
+    find "$SIGNAL_DIR/conversations" -name "*.md" -type f | sort -r | head -5 | while read file; do
+      local basename=$(basename "$file" .md)
+      echo "  - $basename"
+    done
+  fi
+  
+  echo ""
+  echo "Run 'signal help' for available commands"
+}
+
+# List paths
+cmd_paths() {
+  check_signal_dir
+  
+  local filter="${1:-all}"
+  
+  echo -e "${BLUE}=== Paths ===${NC}\n"
+  
+  case $filter in
+    active)
+      cat "$SIGNAL_DIR/paths/active.md"
+      ;;
+    deferred)
+      cat "$SIGNAL_DIR/paths/deferred.md"
+      ;;
+    *)
+      echo "Active:"
+      cat "$SIGNAL_DIR/paths/active.md"
+      echo ""
+      echo "Deferred:"
+      cat "$SIGNAL_DIR/paths/deferred.md"
+      ;;
+  esac
+}
+
+# Show help
+cmd_help() {
+  cat << EOF
+${BLUE}Signal & Noise Framework${NC} v${VERSION}
+Conversation-driven context and decision tracking
+
+${GREEN}Usage:${NC}
+  signal <command> [options]
+
+${GREEN}Commands:${NC}
+  ${BLUE}init${NC}                 Initialize Signal in current project
+  ${BLUE}capture${NC} [desc]       Capture a new conversation
+  ${BLUE}status${NC}               Show project status
+  ${BLUE}paths${NC} [filter]       List paths (all|active|deferred)
+  ${BLUE}list${NC}                 List all conversations
+  ${BLUE}open${NC} <file>          Open a conversation for editing
+  ${BLUE}help${NC}                 Show this help
+
+${GREEN}Examples:${NC}
+  signal init
+  signal capture "Discussed API authentication"
+  signal status
+  signal paths deferred
+  signal open 2026-02-12-api-auth
+
+${GREEN}Modes:${NC}
+  ${YELLOW}minimum${NC}  - Manual files, maximum control (default)
+  ${YELLOW}guided${NC}   - Smart suggestions, pattern recognition (coming soon)
+
+${GREEN}Learn More:${NC}
+  https://github.com/yourusername/signal-and-noise-framework
+
+EOF
+}
+
+# List conversations
+cmd_list() {
+  check_signal_dir
+  
+  echo -e "${BLUE}=== Conversations ===${NC}\n"
+  
+  find "$SIGNAL_DIR/conversations" -name "*.md" -type f | sort -r | while read file; do
+    local basename=$(basename "$file" .md)
+    local first_line=$(head -1 "$file" | sed 's/# Conversation: //')
+    echo "  ${GREEN}•${NC} $basename"
+    echo "    $first_line"
+    echo ""
+  done
+}
+
+# Open a conversation
+cmd_open() {
+  check_signal_dir
+  
+  local query="$1"
+  if [ -z "$query" ]; then
+    error "Usage: signal open <filename or search term>"
+  fi
+  
+  # Try exact match first
+  local file="$SIGNAL_DIR/conversations/${query}.md"
+  if [ -f "$file" ]; then
+    ${EDITOR:-nano} "$file"
+    exit 0
+  fi
+  
+  # Try fuzzy match
+  local matches=$(find "$SIGNAL_DIR/conversations" -name "*${query}*.md" -type f)
+  local match_count=$(echo "$matches" | wc -l | tr -d ' ')
+  
+  if [ "$match_count" -eq 0 ]; then
+    error "No conversations found matching: $query"
+  elif [ "$match_count" -eq 1 ]; then
+    ${EDITOR:-nano} "$matches"
+  else
+    echo "Multiple matches found:"
+    echo "$matches" | while read file; do
+      echo "  - $(basename "$file" .md)"
+    done
+    exit 1
+  fi
+}
+
+# Main command router
+case "${1:-help}" in
+  init)
+    cmd_init
+    ;;
+  capture)
+    shift
+    cmd_capture "$*"
+    ;;
+  status)
+    cmd_status
+    ;;
+  paths)
+    cmd_paths "${2:-all}"
+    ;;
+  list)
+    cmd_list
+    ;;
+  open)
+    cmd_open "$2"
+    ;;
+  help|--help|-h)
+    cmd_help
+    ;;
+  version|--version|-v)
+    echo "Signal & Noise Framework v${VERSION}"
+    ;;
+  *)
+    error "Unknown command: $1\nRun 'signal help' for usage."
+    ;;
+esac

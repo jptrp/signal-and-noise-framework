@@ -1,0 +1,32 @@
+{
+  "name": "signal-and-noise-framework",
+  "version": "0.1.0",
+  "description": "Conversation-driven context and decision tracking for IDE teams",
+  "main": "bin/signal",
+  "bin": {
+    "signal": "./bin/signal"
+  },
+  "scripts": {
+    "test": "echo \"Tests coming soon\" && exit 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/signal-and-noise-framework.git"
+  },
+  "keywords": [
+    "context",
+    "decision-tracking",
+    "conversation",
+    "knowledge-graph",
+    "ai-assistant",
+    "github-copilot",
+    "ide",
+    "collaboration"
+  ],
+  "author": "Dustin Braun",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/signal-and-noise-framework/issues"
+  },
+  "homepage": "https://github.com/yourusername/signal-and-noise-framework#readme"
+}
