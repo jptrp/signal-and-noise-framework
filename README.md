@@ -61,6 +61,18 @@ After a productive chat session, run:
 signal capture "Discussed API authentication options"
 ```
 
+**Or let Signal suggest a description for you:**
+```bash
+signal capture     # Analyzes git commits and changed files
+
+# Signal shows:
+# 1. Added JWT authentication middleware (from recent commit)
+# 2. Modified 3 files in auth (from git status)
+# 3. Working on new feature (generic)
+# 4. Custom description...
+# Select option (1-4): 
+```
+
 This creates a conversation node that prompts you to record:
 - What was discussed
 - What paths were revealed

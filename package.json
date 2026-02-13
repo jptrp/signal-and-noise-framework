@@ -1,6 +1,6 @@
 {
   "name": "signal-and-noise-framework",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Conversation-driven context and decision tracking for IDE teams",
   "main": "bin/signal",
   "bin": {

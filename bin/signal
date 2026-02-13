@@ -5,7 +5,7 @@
 
 set -e
 
-VERSION="0.1.0"
+VERSION="0.2.0"
 SIGNAL_DIR=".signal"
 TEMPLATE_DIR="$(dirname "$0")/../templates"
 
@@ -150,11 +150,96 @@ EOF
   success "Signal initialized! Run 'signal help' to get started."
 }
 
+# Generate description suggestions from git history
+generate_description_suggestions() {
+  local suggestions=()
+  
+  # Check if we're in a git repo
+  if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    return 1
+  fi
+  
+  # Get recent commit messages (last 3 hours)
+  local recent_commits=$(git log --since="3 hours ago" --pretty=format:"%s" 2>/dev/null | head -3)
+  
+  # Get changed files
+  local changed_files=$(git status --short 2>/dev/null | head -5)
+  
+  # Get last commit message as suggestion 1
+  if [ -n "$recent_commits" ]; then
+    local last_commit=$(echo "$recent_commits" | head -1)
+    suggestions+=("$last_commit")
+  fi
+  
+  # Generate suggestion from changed files
+  if [ -n "$changed_files" ]; then
+    local file_count=$(echo "$changed_files" | wc -l | tr -d ' ')
+    local first_file=$(echo "$changed_files" | head -1 | awk '{print $2}')
+    local dir_name=$(dirname "$first_file" | cut -d'/' -f1)
+    
+    if [ "$file_count" -eq 1 ]; then
+      suggestions+=("Updated $(basename "$first_file")")
+    else
+      suggestions+=("Modified $file_count files in $dir_name")
+    fi
+  fi
+  
+  # Add generic option
+  suggestions+=("Working on new feature")
+  
+  # Print suggestions
+  for i in "${!suggestions[@]}"; do
+    echo "$((i+1)). ${suggestions[$i]}"
+  done
+  echo "4. Custom description..."
+  
+  # Return success if we have git-based suggestions
+  [ -n "$recent_commits" ] || [ -n "$changed_files" ]
+}
+
 # Capture a conversation
 cmd_capture() {
   check_signal_dir
   
-  local description="${1:-New conversation}"
+  local description="$*"
+  
+  # If no description provided, offer suggestions
+  if [ -z "$description" ]; then
+    info "No description provided. Analyzing recent work..."
+    echo ""
+    
+    if generate_description_suggestions; then
+      echo ""
+      read -p "Select option (1-4): " -n 1 -r choice
+      echo ""
+      
+      case $choice in
+        1|2|3)
+          # Extract the selected suggestion
+          description=$(generate_description_suggestions | sed -n "${choice}p" | cut -d'.' -f2- | sed 's/^ //')
+          ;;
+        4)
+          read -p "Enter description: " description
+          if [ -z "$description" ]; then
+            error "Description cannot be empty"
+          fi
+          ;;
+        *)
+          error "Invalid selection"
+          ;;
+      esac
+    else
+      # No git info available, prompt for custom
+      read -p "Enter conversation description: " description
+      if [ -z "$description" ]; then
+        error "Description cannot be empty"
+      fi
+    fi
+    
+    echo ""
+    info "Using: $description"
+  fi
+  
   local date=$(date +%Y-%m-%d)
   local time=$(date +%H:%M)
   local slug=$(echo "$description" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd '[:alnum:]-')
