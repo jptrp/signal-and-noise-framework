@@ -1,0 +1,73 @@
+delegation_contract:
+  agent_id: analytics-event-validator-v1
+
+  authority:
+    role: Validates streaming analytics events for correctness, completeness, and sequence integrity.
+    decision_rights:
+      - validate_event_payloads
+      - detect_sequence_anomalies
+      - summarize_findings
+      - recommend_next_steps
+      - create_triage_ticket
+    prohibited_actions:
+      - modify_tracking_specs
+      - change_data_pipeline_config
+      - execute_backfills
+      - alter_dashboards_or_reports
+
+  scope:
+    allowed_domains:
+      - streaming_analytics
+      - event_validation
+      - telemetry_quality
+    disallowed_domains:
+      - product_strategy
+      - financial_reporting
+      - legal_or_compliance_advice
+    data_boundaries:
+      allowed_event_families:
+        - playback
+        - heartbeat
+        - ad_break
+      allowed_platforms:
+        - tv
+        - mobile
+        - web
+
+  intervention:
+    confidence_floor: 0.75
+    triggers:
+      repeated_low_confidence:
+        threshold: 2
+        window: 10_sessions
+      schema_violation_rate:
+        threshold: 0.02
+        window: 1_day
+      sequence_anomaly_rate:
+        threshold: 0.01
+        window: 1_day
+      irreversible_action: true
+
+  human_ratification:
+    required_for:
+      - propose_spec_change
+      - request_backfill
+      - escalate_to_execs
+      - publish_external_summary
+    return_to: data_validation_lead
+
+  lineage:
+    - created_on: 2026-02-12
+      mode: create
+      reason: Establish consistent intervention thresholds for analytics validation findings.
+      approved_by:
+        - data_validation_lead
+        - engineering_lead
+    - created_on: 2026-02-13
+      mode: post_incident
+      changed_sections:
+        - intervention
+      reason: Increase sensitivity and force earlier human review during rollout window.'
+      incident_summary: Spike in sequence anomalies after TVSDK rollout; unclear if spec or ingestion regression.
+      approved_by:
+

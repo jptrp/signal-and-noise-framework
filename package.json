@@ -4,7 +4,8 @@
   "description": "Conversation-driven context and decision tracking for IDE teams",
   "main": "bin/signal",
   "bin": {
-    "signal": "./bin/signal"
+    "signal": "./bin/signal",
+    "sn-contract": "./bin/sn-contract"
   },
   "scripts": {
     "test": "echo \"Tests coming soon\" && exit 0"
@@ -28,5 +29,8 @@
   "bugs": {
     "url": "https://github.com/yourusername/signal-and-noise-framework/issues"
   },
-  "homepage": "https://github.com/yourusername/signal-and-noise-framework#readme"
+  "homepage": "https://github.com/yourusername/signal-and-noise-framework#readme",
+  "dependencies": {
+    "yaml": "^2.8.2"
+  }
 }

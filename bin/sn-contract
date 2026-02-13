@@ -1,0 +1,545 @@
+#!/usr/bin/env node
+
+const fs = require("node:fs");
+const path = require("node:path");
+const readline = require("node:readline");
+const YAML = require("yaml");
+
+const TEMPLATE_PATH = path.join(
+  __dirname,
+  "..",
+  "templates",
+  "delegation-contract-interview.md"
+);
+
+const CONTRACTS_DIR = path.join(process.cwd(), "contracts");
+
+const COMMANDS = ["new", "adjust", "post-incident"];
+const SECTION_OPTIONS = ["authority", "scope", "intervention", "human_ratification"];
+
+const toSlug = (value) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+const readTemplateQuestions = () => {
+  if (!fs.existsSync(TEMPLATE_PATH)) {
+    throw new Error(`Missing template: ${TEMPLATE_PATH}`);
+  }
+
+  const content = fs.readFileSync(TEMPLATE_PATH, "utf8");
+  const questions = content
+    .split("\n")
+    .map((line) => line.match(/^\d+\.\s+(.*)$/))
+    .filter(Boolean)
+    .map((match) => match[1].trim());
+
+  if (questions.length < 20) {
+    throw new Error("Template missing expected questions.");
+  }
+
+  return questions;
+};
+
+const ask = (rl, prompt) =>
+  new Promise((resolve) => {
+    rl.question(`${prompt} `, (answer) => resolve(answer.trim()));
+  });
+
+const askList = async (rl, prompt) => {
+  const raw = await ask(rl, `${prompt} (comma-separated)`);
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+};
+
+const askNumber = async (rl, prompt) => {
+  const raw = await ask(rl, prompt);
+  if (!raw) return null;
+  const parsed = Number.parseFloat(raw);
+  if (!Number.isFinite(parsed)) return null;
+  return parsed;
+};
+
+const askYesNo = async (rl, prompt) => {
+  const raw = await ask(rl, `${prompt} (y/n)`);
+  return raw.toLowerCase().startsWith("y");
+};
+
+const normalizeWindow = (value) => value.trim().toLowerCase();
+
+const ensureContractsDir = () => {
+  if (!fs.existsSync(CONTRACTS_DIR)) {
+    throw new Error(`contracts/ directory not found at ${CONTRACTS_DIR}`);
+  }
+};
+
+const buildLineageReason = (risk, boundaries, incidents) => {
+  const parts = [risk, boundaries, incidents].filter(Boolean);
+  return parts.join(" ").trim();
+};
+
+const ensureRequiredSections = (contract) => {
+  const required = ["agent_id", "authority", "scope", "intervention", "human_ratification", "lineage"];
+  const missing = required.filter((key) => contract[key] === undefined);
+  if (missing.length > 0) {
+    throw new Error(`Contract missing required sections: ${missing.join(", ")}`);
+  }
+  if (!Array.isArray(contract.lineage)) {
+    throw new Error("Contract lineage must be an array.");
+  }
+};
+
+const loadContract = (filePath) => {
+  const raw = fs.readFileSync(filePath, "utf8");
+  const parsed = YAML.parse(raw);
+  if (!parsed || !parsed.delegation_contract) {
+    throw new Error("Invalid contract file: missing delegation_contract root.");
+  }
+  const contract = parsed.delegation_contract;
+  ensureRequiredSections(contract);
+  contract.scope.data_boundaries = contract.scope.data_boundaries || {};
+  contract.intervention.triggers = contract.intervention.triggers || {};
+  contract.authority.decision_rights = contract.authority.decision_rights || [];
+  contract.authority.prohibited_actions = contract.authority.prohibited_actions || [];
+  contract.scope.allowed_domains = contract.scope.allowed_domains || [];
+  contract.scope.disallowed_domains = contract.scope.disallowed_domains || [];
+  contract.human_ratification.required_for = contract.human_ratification.required_for || [];
+  return contract;
+};
+
+const formatYaml = (data) => {
+  const indent = (level) => "  ".repeat(level);
+  const lines = [];
+
+  const pushList = (level, key, values) => {
+    lines.push(`${indent(level)}${key}:`);
+    values.forEach((value) => {
+      lines.push(`${indent(level + 1)}- ${value}`);
+    });
+  };
+
+  lines.push("delegation_contract:");
+  lines.push(`${indent(1)}agent_id: ${data.agent_id}`);
+  lines.push("");
+
+  lines.push(`${indent(1)}authority:`);
+  lines.push(`${indent(2)}role: ${data.authority.role}`);
+  pushList(2, "decision_rights", data.authority.decision_rights);
+  pushList(2, "prohibited_actions", data.authority.prohibited_actions);
+  lines.push("");
+
+  lines.push(`${indent(1)}scope:`);
+  pushList(2, "allowed_domains", data.scope.allowed_domains);
+  pushList(2, "disallowed_domains", data.scope.disallowed_domains);
+
+  const dataBoundaries = data.scope.data_boundaries || {};
+  if (Object.keys(dataBoundaries).length > 0) {
+    lines.push(`${indent(2)}data_boundaries:`);
+    Object.entries(dataBoundaries).forEach(([key, values]) => {
+      lines.push(`${indent(3)}${key}:`);
+      values.forEach((value) => {
+        lines.push(`${indent(4)}- ${value}`);
+      });
+    });
+  }
+
+  lines.push("");
+
+  lines.push(`${indent(1)}intervention:`);
+  lines.push(`${indent(2)}confidence_floor: ${data.intervention.confidence_floor}`);
+  lines.push(`${indent(2)}triggers:`);
+
+  const triggers = data.intervention.triggers || {};
+  Object.entries(triggers).forEach(([key, value]) => {
+    if (value === true) {
+      lines.push(`${indent(3)}${key}: true`);
+      return;
+    }
+    lines.push(`${indent(3)}${key}:`);
+    lines.push(`${indent(4)}threshold: ${value.threshold}`);
+    lines.push(`${indent(4)}window: ${value.window}`);
+  });
+
+  lines.push("");
+
+  lines.push(`${indent(1)}human_ratification:`);
+  pushList(2, "required_for", data.human_ratification.required_for);
+  lines.push(`${indent(2)}return_to: ${data.human_ratification.return_to}`);
+  lines.push("");
+
+  lines.push(`${indent(1)}lineage:`);
+  data.lineage.forEach((entry) => {
+    lines.push(`${indent(2)}- created_on: ${entry.created_on}`);
+    lines.push(`${indent(3)}mode: ${entry.mode}`);
+    if (entry.changed_sections && entry.changed_sections.length > 0) {
+      lines.push(`${indent(3)}changed_sections:`);
+      entry.changed_sections.forEach((section) => {
+        lines.push(`${indent(4)}- ${section}`);
+      });
+    }
+    lines.push(`${indent(3)}reason: ${entry.reason}`);
+    if (entry.incident_summary) {
+      lines.push(`${indent(3)}incident_summary: ${entry.incident_summary}`);
+    }
+    lines.push(`${indent(3)}approved_by:`);
+    entry.approved_by.forEach((approver) => {
+      lines.push(`${indent(4)}- ${approver}`);
+    });
+  });
+
+  lines.push("");
+  return `${lines.join("\n")}\n`;
+};
+
+const promptSections = async (rl) => {
+  while (true) {
+    const raw = await ask(
+      rl,
+      "Sections to reopen (authority, scope, intervention, human_ratification):"
+    );
+    const parts = raw
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const unique = [...new Set(parts)];
+    const invalid = unique.filter((section) => !SECTION_OPTIONS.includes(section));
+
+    if (unique.length === 0) {
+      console.log("Please enter at least one section.");
+      continue;
+    }
+
+    if (invalid.length > 0) {
+      console.log(`Invalid sections: ${invalid.join(", ")}`);
+      continue;
+    }
+
+    return unique;
+  }
+};
+
+const applyAuthorityUpdates = async (rl, questions, contract) => {
+  const decisionRights = await askList(rl, `${questions[4]}`);
+  const prohibitedActions = await askList(rl, `${questions[5]}`);
+  const hasIrreversible = await askYesNo(rl, `${questions[6]}`);
+
+  if (decisionRights.length > 0) {
+    contract.authority.decision_rights = decisionRights;
+  }
+  if (prohibitedActions.length > 0) {
+    contract.authority.prohibited_actions = prohibitedActions;
+  }
+
+  contract.intervention.triggers = contract.intervention.triggers || {};
+  if (hasIrreversible) {
+    contract.intervention.triggers.irreversible_action = true;
+  } else {
+    delete contract.intervention.triggers.irreversible_action;
+  }
+};
+
+const applyScopeUpdates = async (rl, questions, contract) => {
+  const allowedDomains = await askList(rl, `${questions[7]}`);
+  const disallowedDomains = await askList(rl, `${questions[8]}`);
+  const hasBoundaries = await askYesNo(rl, `${questions[9]}`);
+
+  if (allowedDomains.length > 0) {
+    contract.scope.allowed_domains = allowedDomains;
+  }
+  if (disallowedDomains.length > 0) {
+    contract.scope.disallowed_domains = disallowedDomains;
+  }
+
+  if (!hasBoundaries) {
+    contract.scope.data_boundaries = {};
+    return;
+  }
+
+  const dataBoundaries = {};
+  const boundaryKeys = await askList(rl, "List data boundary keys");
+  for (const key of boundaryKeys) {
+    const values = await askList(rl, `Values for ${key}`);
+    if (values.length > 0) {
+      dataBoundaries[key] = values;
+    }
+  }
+
+  contract.scope.data_boundaries = dataBoundaries;
+};
+
+const parseRateTriggers = (entries) => {
+  const triggers = {};
+  entries.forEach((entry) => {
+    const [name, threshold, window] = entry.split(":").map((value) => value.trim());
+    if (!name || !threshold || !window) return;
+    const parsed = Number.parseFloat(threshold);
+    if (!Number.isFinite(parsed)) return;
+    triggers[name] = { threshold: parsed, window };
+  });
+  return triggers;
+};
+
+// TODO (v0.2):
+// In adjust/post-incident mode, blank responses must preserve existing nested fields.
+// Deletions require explicit confirmation.
+// Current bug: rateTriggers and other complex fields are overwritten as empty when user leaves prompt blank.
+// Fix: only update fields that received explicit input; preserve unedited fields from prior contract state.
+
+const applyInterventionUpdates = async (rl, questions, contract, preserveIrreversible) => {
+  const confidenceFloor = await askNumber(rl, `${questions[10]}`);
+  const lowConfidenceThreshold = await askNumber(rl, `${questions[11]} (threshold)`);
+  const lowConfidenceWindow = await ask(rl, `${questions[11]} (window)`);
+  const driftTriggers = await askList(rl, `${questions[12]}`);
+  const rateTriggers = await askList(
+    rl,
+    `${questions[13]} (use name:threshold:window for rate triggers)`
+  );
+
+  if (confidenceFloor !== null) {
+    contract.intervention.confidence_floor = confidenceFloor;
+  }
+
+  const triggers = {};
+  if (lowConfidenceThreshold !== null && lowConfidenceWindow) {
+    triggers.repeated_low_confidence = {
+      threshold: lowConfidenceThreshold,
+      window: normalizeWindow(lowConfidenceWindow)
+    };
+  } else if (contract.intervention.triggers.repeated_low_confidence) {
+    triggers.repeated_low_confidence = contract.intervention.triggers.repeated_low_confidence;
+  }
+
+  driftTriggers.forEach((name) => {
+    if (!name) return;
+    triggers[name] = true;
+  });
+
+  const parsedRateTriggers = parseRateTriggers(rateTriggers);
+  Object.entries(parsedRateTriggers).forEach(([key, value]) => {
+    triggers[key] = value;
+  });
+
+  if (preserveIrreversible && contract.intervention.triggers.irreversible_action) {
+    triggers.irreversible_action = true;
+  }
+
+  contract.intervention.triggers = triggers;
+};
+
+const applyRatificationUpdates = async (rl, questions, contract) => {
+  const requiredFor = await askList(rl, `${questions[14]}`);
+  const returnTo = await ask(rl, `${questions[15]}`);
+  await ask(rl, `${questions[16]}`);
+
+  if (requiredFor.length > 0) {
+    contract.human_ratification.required_for = requiredFor;
+  }
+  if (returnTo) {
+    contract.human_ratification.return_to = returnTo;
+  }
+};
+
+const runCreate = async () => {
+  ensureContractsDir();
+
+  const questions = readTemplateQuestions();
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+  const agentName = await ask(rl, `${questions[0]}`);
+  const agentId = toSlug(agentName || "contract");
+  const role = await ask(rl, `${questions[1]}`);
+  const owner = await ask(rl, `${questions[2]}`);
+  const risk = await ask(rl, `${questions[3]}`);
+
+  const decisionRights = await askList(rl, `${questions[4]}`);
+  const prohibitedActions = await askList(rl, `${questions[5]}`);
+  const hasIrreversible = await askYesNo(rl, `${questions[6]}`);
+
+  const allowedDomains = await askList(rl, `${questions[7]}`);
+  const disallowedDomains = await askList(rl, `${questions[8]}`);
+  const hasBoundaries = await askYesNo(rl, `${questions[9]}`);
+  const dataBoundaries = {};
+  if (hasBoundaries) {
+    const boundaryKeys = await askList(rl, "List data boundary keys");
+    for (const key of boundaryKeys) {
+      const values = await askList(rl, `Values for ${key}`);
+      if (values.length > 0) {
+        dataBoundaries[key] = values;
+      }
+    }
+  }
+
+  const confidenceFloor = await askNumber(rl, `${questions[10]}`);
+  const lowConfidenceThreshold = await askNumber(rl, `${questions[11]} (threshold)`);
+  const lowConfidenceWindow = await ask(rl, `${questions[11]} (window)`);
+  const driftTriggers = await askList(rl, `${questions[12]}`);
+  const rateTriggers = await askList(
+    rl,
+    `${questions[13]} (use name:threshold:window for rate triggers)`
+  );
+
+  const requiredFor = await askList(rl, `${questions[14]}`);
+  const returnTo = await ask(rl, `${questions[15]}`);
+  await ask(rl, `${questions[16]}`);
+
+  const boundariesReason = await ask(rl, `${questions[17]}`);
+  const incidents = await ask(rl, `${questions[18]}`);
+  const approvedBy = await askList(rl, `${questions[19]}`);
+
+  rl.close();
+
+  const triggers = {};
+  if (hasIrreversible) {
+    triggers.irreversible_action = true;
+  }
+  if (lowConfidenceThreshold !== null && lowConfidenceWindow) {
+    triggers.repeated_low_confidence = {
+      threshold: lowConfidenceThreshold,
+      window: normalizeWindow(lowConfidenceWindow)
+    };
+  }
+
+  driftTriggers.forEach((name) => {
+    if (!name) return;
+    triggers[name] = true;
+  });
+
+  const parsedRateTriggers = parseRateTriggers(rateTriggers);
+  Object.entries(parsedRateTriggers).forEach(([key, value]) => {
+    triggers[key] = value;
+  });
+
+  const today = new Date().toISOString().split("T")[0];
+  const createdReason = buildLineageReason(risk, boundariesReason, incidents);
+
+  const contract = {
+    agent_id: agentId,
+    authority: {
+      role: role || "",
+      decision_rights: decisionRights,
+      prohibited_actions: prohibitedActions
+    },
+    scope: {
+      allowed_domains: allowedDomains,
+      disallowed_domains: disallowedDomains,
+      data_boundaries: dataBoundaries
+    },
+    intervention: {
+      confidence_floor: confidenceFloor !== null ? confidenceFloor : 0.0,
+      triggers
+    },
+    human_ratification: {
+      required_for: requiredFor,
+      return_to: returnTo || owner
+    },
+    lineage: [
+      {
+        created_on: today,
+        mode: "create",
+        reason: createdReason || "",
+        approved_by: approvedBy
+      }
+    ]
+  };
+
+  const yaml = formatYaml(contract);
+  const targetPath = path.join(CONTRACTS_DIR, `${agentId}.yaml`);
+  fs.writeFileSync(targetPath, yaml, "utf8");
+
+  console.log(`Created ${targetPath}`);
+};
+
+const runUpdate = async (mode, agentIdArg) => {
+  ensureContractsDir();
+
+  if (!agentIdArg) {
+    throw new Error(`Usage: sn-contract ${mode} <agent_id>`);
+  }
+
+  const fileName = agentIdArg.endsWith(".yaml") ? agentIdArg : `${agentIdArg}.yaml`;
+  const filePath = path.join(CONTRACTS_DIR, fileName);
+
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Contract not found: ${filePath}`);
+  }
+
+  const contract = loadContract(filePath);
+  const questions = readTemplateQuestions();
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+  const sections = await promptSections(rl);
+  const preserveIrreversible =
+    !sections.includes("authority") && contract.intervention.triggers.irreversible_action;
+
+  if (sections.includes("authority")) {
+    await applyAuthorityUpdates(rl, questions, contract);
+  }
+
+  if (sections.includes("scope")) {
+    await applyScopeUpdates(rl, questions, contract);
+  }
+
+  if (sections.includes("intervention")) {
+    await applyInterventionUpdates(rl, questions, contract, preserveIrreversible);
+  }
+
+  if (sections.includes("human_ratification")) {
+    await applyRatificationUpdates(rl, questions, contract);
+  }
+
+  const reason = await ask(rl, "Why are we changing this?");
+  let incidentSummary = "";
+  if (mode === "post-incident") {
+    incidentSummary = await ask(rl, "Incident summary (1-3 lines):");
+  }
+  const approvedBy = await askList(rl, "Who approved this change?");
+
+  rl.close();
+
+  const entry = {
+    created_on: new Date().toISOString().split("T")[0],
+    mode: mode === "post-incident" ? "post_incident" : "adjust",
+    changed_sections: sections,
+    reason: reason || "",
+    approved_by: approvedBy
+  };
+
+  if (incidentSummary) {
+    entry.incident_summary = incidentSummary;
+  }
+
+  contract.lineage.push(entry);
+
+  const yaml = formatYaml(contract);
+  fs.writeFileSync(filePath, yaml, "utf8");
+
+  console.log(`Updated ${filePath}`);
+};
+
+const main = async () => {
+  const [command, agentIdArg] = process.argv.slice(2);
+
+  if (!COMMANDS.includes(command)) {
+    console.log("Usage: sn-contract <new|adjust|post-incident> [agent_id]");
+    return;
+  }
+
+  if (command === "new") {
+    await runCreate();
+    return;
+  }
+
+  await runUpdate(command, agentIdArg);
+};
+
+main().catch((error) => {
+  console.error(error.message);
+  process.exitCode = 1;
+});

@@ -1,0 +1,57 @@
+delegation_contract:
+  agent_id: support-triage-v1
+
+  authority:
+    role: Handles inbound customer questions about billing.
+    decision_rights:
+      - answer_billing_questions
+    prohibited_actions:
+      - issue_refunds_above_500
+      - provide_legal_advice
+
+  scope:
+    allowed_domains:
+      - billing
+      - subscription
+    disallowed_domains:
+      - refunds_above_500
+      - legal_advice
+
+  intervention:
+    confidence_floor: 0.72
+    triggers:
+      repeated_low_confidence:
+        threshold: 3
+        window: 5_sessions
+      irreversible_action: true
+
+  human_ratification:
+    required_for:
+      - refunds_above_500
+      - account_termination
+    return_to: pm_owner
+
+  lineage:
+    - created_on: 2026-02-12
+      mode: create
+      reason: Initial AI billing triage rollout
+      approved_by:
+        - pm_owner
+        - engineering_lead
+    - created_on: 2026-02-13
+      mode: adjust
+      changed_sections:
+        - intervention
+      reason: No-o adjust for audit
+      approved_by:
+        - pm_owner
+        - engineering_lead
+    - created_on: 2026-02-13
+      mode: adjust
+      changed_sections:
+        - intervention
+      reason: No-op adjust for audit 2
+      approved_by:
+        - pm_owner
+        - engineering_lead
+

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>One-Screen Habit Tracker</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="app__header">
+        <p class="app__eyebrow">Minimal app</p>
+        <h1>One-Screen Habit Tracker</h1>
+        <p class="app__subhead">Track a single habit with a daily checkbox and a 7-day view.</p>
+      </header>
+
+      <section class="card">
+        <label class="field">
+          <span>Habit name</span>
+          <input id="habitName" type="text" placeholder="Example: Morning walk" />
+        </label>
+
+        <div class="card__row">
+          <div>
+            <p class="label">Today</p>
+            <label class="toggle">
+              <input id="todayToggle" type="checkbox" />
+              <span>Done</span>
+            </label>
+          </div>
+
+          <div class="metric">
+            <p class="label">Streak</p>
+            <p id="streak" class="metric__value">0 days</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <p class="label">Last 7 days</p>
+        <div id="days" class="days"></div>
+      </section>
+
+      <footer class="footer">
+        <p>Stored locally in your browser.</p>
+      </footer>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

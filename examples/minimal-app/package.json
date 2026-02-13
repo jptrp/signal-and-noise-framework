@@ -1,0 +1,10 @@
+{
+  "name": "minimal-app-idea-picker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal CLI for picking an app idea and practicing Signal",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js"
+  }
+}
