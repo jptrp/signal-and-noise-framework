@@ -140,7 +140,7 @@ signal import --from notion   # Import existing docs
 
 ## Community Feature Requests
 
-**Vote or suggest at**: https://github.com/yourusername/signal-and-noise-framework/discussions
+**Vote or suggest at**: https://github.com/jptrp/signal-and-noise-framework/discussions
 
 ### Requested Features:
 1. ⭐⭐⭐ AI-assisted full generation (v0.3.0)

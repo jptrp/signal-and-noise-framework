@@ -11,7 +11,7 @@ Welcome! Let's get you capturing conversation intelligence in 5 minutes.
 ```bash
 # In your project directory
 cd your-project
-curl -O https://raw.githubusercontent.com/yourusername/signal-and-noise-framework/main/bin/signal
+curl -O https://raw.githubusercontent.com/jptrp/signal-and-noise-framework/main/bin/signal
 chmod +x signal
 ./signal init
 ```
@@ -21,7 +21,7 @@ chmod +x signal
 ```bash
 # Clone the framework
 cd ~/Career  # or wherever you keep code
-git clone https://github.com/yourusername/signal-and-noise-framework.git
+git clone https://github.com/jptrp/signal-and-noise-framework.git
 cd signal-and-noise-framework
 
 # Add to PATH (choose your shell)
@@ -243,8 +243,8 @@ When something is valuable but not now:
 
 - 📖 **Full Docs**: [docs/](../docs/)
 - 💬 **Examples**: [examples/sample-project/](../examples/sample-project/)
-- 🐛 **Issues**: [GitHub Issues](https://github.com/yourusername/signal-and-noise-framework/issues)
-- 💡 **Ideas**: [GitHub Discussions](https://github.com/yourusername/signal-and-noise-framework/discussions)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/jptrp/signal-and-noise-framework/issues)
+- 💡 **Ideas**: [GitHub Discussions](https://github.com/jptrp/signal-and-noise-framework/discussions)
 
 ---
 

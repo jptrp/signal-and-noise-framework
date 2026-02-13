@@ -184,7 +184,7 @@ signal help                              # Built-in help
 cat ~/.signal/templates/conversation.md  # See template
 ```
 
-Docs: [https://github.com/yourusername/signal-and-noise-framework](https://github.com/yourusername/signal-and-noise-framework)
+Docs: [https://github.com/jptrp/signal-and-noise-framework](https://github.com/jptrp/signal-and-noise-framework)
 
 ---
 

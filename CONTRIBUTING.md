@@ -20,15 +20,15 @@ Thank you for your interest! This project is in early development and we welcome
 - Translate to other languages
 
 ### 4. **Build Features**
-- Check [Issues](https://github.com/yourusername/signal-and-noise-framework/issues) for requested features
-- Propose new features in [Discussions](https://github.com/yourusername/signal-and-noise-framework/discussions)
+- Check [Issues](https://github.com/jptrp/signal-and-noise-framework/issues) for requested features
+- Propose new features in [Discussions](https://github.com/jptrp/signal-and-noise-framework/discussions)
 - Submit pull requests
 
 ## Development Setup
 
 ```bash
 # Clone the repo
-git clone https://github.com/yourusername/signal-and-noise-framework.git
+git clone https://github.com/jptrp/signal-and-noise-framework.git
 cd signal-and-noise-framework
 
 # Test locally
@@ -75,7 +75,7 @@ Contributions should align with the framework's philosophy:
 
 ## Questions?
 
-Open a [Discussion](https://github.com/yourusername/signal-and-noise-framework/discussions) - we're happy to help!
+Open a [Discussion](https://github.com/jptrp/signal-and-noise-framework/discussions) - we're happy to help!
 
 ---
 

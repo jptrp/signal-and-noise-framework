@@ -36,6 +36,13 @@ Every conversation with your AI assistant reveals new paths, uncovers insights, 
 
 ---
 
+## Brand Framework
+
+Use the canonical brand guidelines for messaging, voice, and visual direction:
+- [docs/brand/README.md](docs/brand/README.md)
+
+---
+
 ## Quick Start
 
 ### 1. Initialize a Project
@@ -127,7 +134,7 @@ Over time, the framework identifies:
 ### Quick Install (Single Project)
 ```bash
 # Copy the init script to your project
-curl -o signal https://raw.githubusercontent.com/yourusername/signal-and-noise-framework/main/bin/signal
+curl -o signal https://raw.githubusercontent.com/jptrp/signal-and-noise-framework/main/bin/signal
 chmod +x signal
 ./signal init
 ```
@@ -135,7 +142,7 @@ chmod +x signal
 ### Global Install
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/signal-and-noise-framework.git
+git clone https://github.com/jptrp/signal-and-noise-framework.git
 cd signal-and-noise-framework
 
 # Add to PATH
@@ -347,8 +354,8 @@ MIT License - Use it, modify it, share it
 ## Questions?
 
 - 📧 Email: support@signalandnoise.dev
-- 💬 Discussions: [GitHub Discussions](https://github.com/yourusername/signal-and-noise-framework/discussions)
-- 🐛 Issues: [GitHub Issues](https://github.com/yourusername/signal-and-noise-framework/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/jptrp/signal-and-noise-framework/discussions)
+- 🐛 Issues: [GitHub Issues](https://github.com/jptrp/signal-and-noise-framework/issues)
 
 ---
 
