@@ -42,6 +42,11 @@ signal help                            # Show help
 - Learning sessions
 - Blocker analysis
 
+✅ **Governance captures (use when decisions affect protocol or policy)**:
+- Keep it brief and auditable
+- Include a single decision + rationale
+- Prefer plain language and avoid theatrics
+
 ❌ **DON'T capture**:
 - Syntax questions
 - Quick bug fixes

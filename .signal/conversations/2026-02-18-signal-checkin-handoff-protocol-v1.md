@@ -6,6 +6,7 @@
 **AI Assistant**: GitHub Copilot  
 **Project**: signal-and-noise-framework  
 **Status**: locked
+**Tags**: governance, protocol
 
 ---
 

@@ -3,6 +3,7 @@
 **Date:** 2026-02-18  
 **Type:** architectural-validation  
 **Status:** completed
+**Tags:** governance, validation
 
 ---
 
